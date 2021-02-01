@@ -13,6 +13,7 @@ def fetch_all_starred(username=None, token=None):
         result = []
         for d in stars:
             d['repo']['starred_at'] = d['starred_at']
+            d['repo']['starred_by'] = username
             result.append(d['repo'])
         yield from result
 
