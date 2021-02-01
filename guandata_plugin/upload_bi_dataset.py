@@ -43,9 +43,9 @@ class BiTool(object):
         data = df.to_dict(orient='records')
         url = f"{self.home_url}/public-api/upload-dataset"
         headers = {"Content-Type": "application/json", "X-Auth-Token": self.get_user_auth_token()}
-        for i in range(math.ceil(len(data) / 5000)):
-            start = 5000 * i
-            end = 5000 * (i + 1) if 5000 * (i + 1) < len(data) else len(data)
+        for i in range(math.ceil(len(data) / 1000)):
+            start = 1000 * i
+            end = 1000 * (i + 1) if 1000 * (i + 1) < len(data) else len(data)
             logging.info(f'uploading index {start} to {end}')
             finish = False if end < len(data) else True
             if replace:
