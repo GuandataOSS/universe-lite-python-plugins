@@ -1,19 +1,62 @@
 import pandas as pd
-from github_utils import paginate
+import requests
+
+
+def paginate(headers, bodyFunc):
+    url = "https://api.github.com/graphql"
+    endCursor = "first: 100"
+    while endCursor:
+        response = requests.post(url, json ={'query': bodyFunc(endCursor)}, headers=headers)
+        # For HTTP 204 no-content this yields an empty list
+        if response.status_code == 204:
+            return
+        data = response.json()
+        if isinstance(data, dict) and data.get("message"):
+            raise data
+        try:
+            endCursor = None
+            if data['data']['repository']['stargazers']['pageInfo']['hasNextPage']:
+                endCursor = 'first: 100, after:"' + data['data']['repository']['stargazers']['pageInfo']['endCursor'] + '"'
+        except AttributeError:
+            endCursor = None
+        yield data['data']['repository']['stargazers']['edges']
 
 
 def fetch_stargazers(repo, token=None):
     headers = {
-        'Authorization': 'token {}'.format(token),
-        'Accept': 'application/vnd.github.v3.star+json'
+        'Authorization': 'Bearer {}'.format(token),
+        'Accept': 'Accept-Encoding: deflate, gzip'
     }
-    url = "https://api.github.com/repos/{}/stargazers".format(repo)
-    for stargazers in paginate(url, headers):
+    parts = repo.split('/')
+    bodyFunc = lambda next_filter: '''
+query {
+  repository(owner: "''' + parts[0] + '", name: "' + parts[1] + '''") {
+  	stargazers(''' + next_filter + ''') {
+  	  edges{
+        node {
+          id,
+          login,
+          name,
+          company,
+          email,
+          location
+        },
+        starredAt
+      },
+      pageInfo {
+        endCursor,
+        hasNextPage
+      }
+  	}
+  }
+}
+'''
+    for stargazers in paginate(headers, bodyFunc):
         # flatten json into more columns
         result = []
         for d in stargazers:
-            d['user']['starred_at'] = d['starred_at']
-            result.append(d['user'])
+            d['node']['starredAt'] = d['starredAt']
+            result.append(d['node'])
         yield from result
 
 
