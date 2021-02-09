@@ -62,6 +62,9 @@ def fetch_all_starred(username=None, token=None):
         # flatten json into more columns
         result = []
         for d in stars:
+            if not d:
+                print('encountered none')
+                continue
             d['node']['starredAt'] = d['starredAt']
             if (d['node']['licenseInfo'] and 'key' in d['node']['licenseInfo']):
                 d['node']['licenseKey'] = d['node']['licenseInfo']['key']
