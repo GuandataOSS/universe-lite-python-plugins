@@ -10,7 +10,11 @@ def paginate(headers, bodyFunc):
         # For HTTP 204 no-content this yields an empty list
         if response.status_code == 204:
             return
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError:
+            print('error: github return wrong data. ', response.text)
+            return
         if isinstance(data, dict) and data.get("message"):
             raise data
         try:
