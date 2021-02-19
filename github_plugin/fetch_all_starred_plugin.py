@@ -1,5 +1,6 @@
 import pandas as pd
 import requests
+import logging
 
 
 def paginate(headers, bodyFunc):
@@ -13,10 +14,26 @@ def paginate(headers, bodyFunc):
         try:
             data = response.json()
         except ValueError:
-            print('error: github return wrong data. ', response.text)
+            logging.error('error: github return wrong data. ' + response.text)
             return
         if isinstance(data, dict) and data.get("message"):
-            raise data
+            logging.error('encounter wrong data: ' + response.text)
+            return
+        #
+        # sometimes, it will error, and the data will be:
+        #  {
+        #    'data': {'user': None},
+        #    'errors': [
+        #      {'type': 'NOT_FOUND',
+        #      'path': ['user'],
+        #      'locations': [{'line': 3, 'column': 7}],
+        #      'message': "Could not resolve to a User with the login of '***'."
+        #      }
+        #     ]
+        # }
+        if isinstance(data, dict) and data.get("errors"):
+            logging.error('encounter wrong data: ' + response.text)
+            return
         try:
             endCursor = None
             if data['data']['user']['starredRepositories']['pageInfo']['hasNextPage']:
@@ -65,18 +82,21 @@ def fetch_all_starred(username=None, token=None):
     for stars in paginate(headers, bodyFunc):
         # flatten json into more columns
         result = []
-        for d in stars:
-            if not d:
-                print('encountered none')
-                continue
-            d['node']['starredAt'] = d['starredAt']
-            if (d['node']['licenseInfo'] and 'key' in d['node']['licenseInfo']):
-                d['node']['licenseKey'] = d['node']['licenseInfo']['key']
-            else:
-                d['node']['licenseKey'] = None
-            del d['node']['licenseInfo']
-            d['node']['starredBy'] = username
-            result.append(d['node'])
+        try:
+            for d in stars:
+                if not d:
+                    logging.error('encountered none')
+                    continue
+                d['node']['starredAt'] = d['starredAt']
+                if (d['node']['licenseInfo'] and 'key' in d['node']['licenseInfo']):
+                    d['node']['licenseKey'] = d['node']['licenseInfo']['key']
+                else:
+                    d['node']['licenseKey'] = None
+                del d['node']['licenseInfo']
+                d['node']['starredBy'] = username
+                result.append(d['node'])
+        except Exception:
+            logging.error('encountered unknown exception')
         yield from result
 
 
